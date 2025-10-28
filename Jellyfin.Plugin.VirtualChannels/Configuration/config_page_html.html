@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Virtual Channels</title>
+</head>
+<body>
+    <div id="VirtualChannelsConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-select,emby-checkbox">
+        <div data-role="content">
+            <div class="content-primary">
+                <form id="VirtualChannelsConfigForm">
+                    <div class="verticalSection">
+                        <h2>Virtual Channels Plugin</h2>
+                        <p>Create virtual cable channels that play content from your media library with commercials, pre-rolls, and scheduled programming.</p>
+                    </div>
+
+                    <div class="verticalSection">
+                        <h2>Libraries</h2>
+                        <div class="checkboxList paperList checkboxList-paperList">
+                            <div class="listItem">
+                                <label class="listItemBody">
+                                    <h3 class="listItemBodyText">Commercial Library</h3>
+                                    <div class="fieldDescription">Select libraries containing commercial videos</div>
+                                    <select is="emby-select" id="commercialLibraries" multiple class="emby-select-withcolor emby-select">
+                                        <!-- Populated dynamically -->
+                                    </select>
+                                </label>
+                            </div>
+                            <div class="listItem">
+                                <label class="listItemBody">
+                                    <h3 class="listItemBodyText">Pre-Roll Library</h3>
+                                    <div class="fieldDescription">Select libraries containing pre-roll videos (trailers, bumpers, etc.)</div>
+                                    <select is="emby-select" id="preRollLibraries" multiple class="emby-select-withcolor emby-select">
+                                        <!-- Populated dynamically -->
+                                    </select>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="verticalSection">
+                        <h2>Auto-Generation</h2>
+                        <label class="checkboxContainer">
+                            <input is="emby-checkbox" type="checkbox" id="enableAutoGeneration" />
+                            <span>Enable automatic channel generation</span>
+                        </label>
+                        <div class="fieldDescription">Automatically create channels based on genres, years, and decades</div>
+                        <button is="emby-button" type="button" id="generateAutoChannels" class="raised button-submit block">
+                            <span>Generate Auto Channels</span>
+                        </button>
+                    </div>
+
+                    <div class="verticalSection">
+                        <h2>Channels</h2>
+                        <div id="channelsList"></div>
+                        <button is="emby-button" type="button" id="addChannel" class="raised block">
+                            <span>Add Channel</span>
+                        </button>
+                    </div>
+
+                    <div>
+                        <button is="emby-button" type="submit" class="raised button-submit block">
+                            <span>Save</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Channel Edit Modal -->
+    <div id="channelEditModal" class="dialog" data-role="dialog">
+        <div class="dialog-content">
+            <h2 id="channelEditTitle">Edit Channel</h2>
+            <form id="channelEditForm">
+                <input type="hidden" id="editChannelId" />
+                
+                <div class="inputContainer">
+                    <label for="editChannelName">Channel Name:</label>
+                    <input is="emby-input" type="text" id="editChannelName" required />
+                </div>
+
+                <div class="inputContainer">
+                    <label for="editChannelNumber">Channel Number:</label>
+                    <input is="emby-input" type="text" id="editChannelNumber" required />
+                </div>
+
+                <div class="inputContainer">
+                    <label for="editChannelType">Channel Type:</label>
+                    <select is="emby-select" id="editChannelType" class="emby-select-withcolor emby-select">
+                        <option value="Manual">Manual</option>
+                        <option value="AutoGenre">Auto - Genre</option>
+                        <option value="AutoYear">Auto - Year</option>
+                        <option value="AutoDecade">Auto - Decade</option>
+                    </select>
+                </div>
+
+                <div class="inputContainer">
+                    <label class="checkboxContainer">
+                        <input is="emby-checkbox" type="checkbox" id="editChannelEnabled" />
+                        <span>Enabled</span>
+                    </label>
+                </div>
+
+                <div class="verticalSection">
+                    <h3>Commercial Settings</h3>
+                    
+                    <label class="checkboxContainer">
+                        <input is="emby-checkbox" type="checkbox" id="editEnableCommercials" />
+                        <span>Enable Commercials</span>
+                    </label>
+
+                    <div class="inputContainer">
+                        <label for="editCommercialInterval">Commercial Interval:</label>
+                        <select is="emby-select" id="editCommercialInterval" class="emby-select-withcolor emby-select">
+                            <option value="Every10Minutes">Every 10 Minutes</option>
+                            <option value="Every15Minutes">Every 15 Minutes</option>
+                            <option value="Every20Minutes">Every 20 Minutes</option>
+                            <option value="Every30Minutes">Every 30 Minutes</option>
+                            <option value="Custom">Custom</option>
+                        </select>
+                    </div>
+
+                    <div class="inputContainer">
+                        <label for="editMinCommercials">Min Commercials per Break:</label>
+                        <input is="emby-input" type="number" id="editMinCommercials" min="1" max="10" value="1" />
+                    </div>
+
+                    <div class="inputContainer">
+                        <label for="editMaxCommercials">Max Commercials per Break:</label>
+                        <input is="emby-input" type="number" id="editMaxCommercials" min="1" max="10" value="3" />
+                    </div>
+
+                    <label class="checkboxContainer">
+                        <input is="emby-checkbox" type="checkbox" id="editUsePreRolls" />
+                        <span>Use Pre-Rolls</span>
+                    </label>
+                </div>
+
+                <div class="verticalSection">
+                    <h3>Playback Settings</h3>
+                    
+                    <label class="checkboxContainer">
+                        <input is="emby-checkbox" type="checkbox" id="editShuffle" />
+                        <span>Shuffle Content</span>
+                    </label>
+
+                    <label class="checkboxContainer">
+                        <input is="emby-checkbox" type="checkbox" id="editRespectEpisodeOrder" />
+                        <span>Respect Episode Order (for TV Shows)</span>
+                    </label>
+                </div>
+
+                <div class="formDialogFooter">
+                    <button is="emby-button" type="submit" class="raised button-submit">
+                        <span>Save</span>
+                    </button>
+                    <button is="emby-button" type="button" class="raised button-cancel" onclick="document.getElementById('channelEditModal').close();">
+                        <span>Cancel</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        var VirtualChannelsConfig = {
+            pluginUniqueId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+
+            loadConfiguration: function() {
+                Dashboard.showLoadingMsg();
+
+                var page = document.getElementById('VirtualChannelsConfigPage');
+
+                ApiClient.getPluginConfiguration(VirtualChannelsConfig.pluginUniqueId).then(function(config) {
+                    document.getElementById('enableAutoGeneration').checked = config.EnableAutoGeneration;
+                    
+                    VirtualChannelsConfig.loadLibraries();
+                    VirtualChannelsConfig.loadChannels(config.Channels || []);
+
+                    Dashboard.hideLoadingMsg();
+                });
+            },
+
+            loadLibraries: function() {
+                ApiClient.getJSON(ApiClient.getUrl('VirtualChannels/Libraries')).then(function(libraries) {
+                    var commercialSelect = document.getElementById('commercialLibraries');
+                    var preRollSelect = document.getElementById('preRollLibraries');
+
+                    commercialSelect.innerHTML = '';
+                    preRollSelect.innerHTML = '';
+
+                    libraries.forEach(function(library) {
+                        var option1 = document.createElement('option');
+                        option1.value = library.Id;
+                        option1.text = library.Name;
+                        commercialSelect.appendChild(option1);
+
+                        var option2 = document.createElement('option');
+                        option2.value = library.Id;
+                        option2.text = library.Name;
+                        preRollSelect.appendChild(option2);
+                    });
+
+                    // Load saved selections
+                    ApiClient.getPluginConfiguration(VirtualChannelsConfig.pluginUniqueId).then(function(config) {
+                        if (config.CommercialLibraries) {
+                            Array.from(commercialSelect.options).forEach(function(option) {
+                                option.selected = config.CommercialLibraries.includes(option.value);
+                            });
+                        }
+                        if (config.PreRollLibraries) {
+                            Array.from(preRollSelect.options).forEach(function(option) {
+                                option.selected = config.PreRollLibraries.includes(option.value);
+                            });
+                        }
+                    });
+                });
+            },
+
+            loadChannels: function(channels) {
+                var container = document.getElementById('channelsList');
+                container.innerHTML = '';
+
+                if (channels.length === 0) {
+                    container.innerHTML = '<p>No channels configured. Click "Add Channel" or "Generate Auto Channels" to get started.</p>';
+                    return;
+                }
+
+                channels.forEach(function(channel) {
+                    var channelDiv = document.createElement('div');
+                    channelDiv.className = 'listItem';
+                    channelDiv.innerHTML = 
+                        '<div class="listItemBody">' +
+                            '<h3 class="listItemBodyText">' +
+                                channel.Number + ' - ' + channel.Name +
+                                (channel.Enabled ? '' : '<span style="color: #999;"> (Disabled)</span>') +
+                            '</h3>' +
+                            '<div class="fieldDescription">' +
+                                'Type: ' + channel.Type + ' | ' +
+                                'Commercials: ' + (channel.CommercialSettings && channel.CommercialSettings.EnableCommercials ? 'Enabled' : 'Disabled') +
+                            '</div>' +
+                        '</div>' +
+                        '<button is="emby-button" type="button" class="paper-icon-button-light btnEditChannel" data-channelid="' + channel.Id + '">' +
+                            '<i class="md-icon">edit</i>' +
+                        '</button>' +
+                        '<button is="emby-button" type="button" class="paper-icon-button-light btnDeleteChannel" data-channelid="' + channel.Id + '">' +
+                            '<i class="md-icon">delete</i>' +
+                        '</button>';
+                    container.appendChild(channelDiv);
+                });
+
+                // Attach event listeners
+                document.querySelectorAll('.btnEditChannel').forEach(function(btn) {
+                    btn.addEventListener('click', function() {
+                        var channelId = this.getAttribute('data-channelid');
+                        var channel = channels.find(function(c) { return c.Id === channelId; });
+                        VirtualChannelsConfig.editChannel(channel);
+                    });
+                });
+
+                document.querySelectorAll('.btnDeleteChannel').forEach(function(btn) {
+                    btn.addEventListener('click', function() {
+                        var channelId = this.getAttribute('data-channelid');
+                        VirtualChannelsConfig.deleteChannel(channelId);
+                    });
+                });
+            },
+
+            editChannel: function(channel) {
+                var modal = document.getElementById('channelEditModal');
+                
+                if (channel) {
+                    document.getElementById('channelEditTitle').textContent = 'Edit Channel';
+                    document.getElementById('editChannelId').value = channel.Id;
+                    document.getElementById('editChannelName').value = channel.Name;
+                    document.getElementById('editChannelNumber').value = channel.Number;
+                    document.getElementById('editChannelType').value = channel.Type;
+                    document.getElementById('editChannelEnabled').checked = channel.Enabled;
+                    
+                    // Commercial settings
+                    if (channel.CommercialSettings) {
+                        document.getElementById('editEnableCommercials').checked = channel.CommercialSettings.EnableCommercials !== false;
+                        document.getElementById('editCommercialInterval').value = channel.CommercialSettings.Interval || 'Every15Minutes';
+                        document.getElementById('editMinCommercials').value = channel.CommercialSettings.MinCommercials || 1;
+                        document.getElementById('editMaxCommercials').value = channel.CommercialSettings.MaxCommercials || 3;
+                        document.getElementById('editUsePreRolls').checked = channel.CommercialSettings.UsePreRolls !== false;
+                    } else {
+                        document.getElementById('editEnableCommercials').checked = true;
+                        document.getElementById('editCommercialInterval').value = 'Every15Minutes';
+                        document.getElementById('editMinCommercials').value = 1;
+                        document.getElementById('editMaxCommercials').value = 3;
+                        document.getElementById('editUsePreRolls').checked = true;
+                    }
+                    
+                    // Playback settings
+                    if (channel.Schedule && channel.Schedule.length > 0) {
+                        document.getElementById('editShuffle').checked = channel.Schedule[0].Shuffle || false;
+                        document.getElementById('editRespectEpisodeOrder').checked = channel.Schedule[0].RespectEpisodeOrder !== false;
+                    } else {
+                        document.getElementById('editShuffle').checked = false;
+                        document.getElementById('editRespectEpisodeOrder').checked = true;
+                    }
+                } else {
+                    // New channel
+                    document.getElementById('channelEditTitle').textContent = 'Add Channel';
+                    document.getElementById('editChannelId').value = '';
+                    document.getElementById('editChannelName').value = '';
+                    document.getElementById('editChannelNumber').value = '';
+                    document.getElementById('editChannelType').value = 'Manual';
+                    document.getElementById('editChannelEnabled').checked = true;
+                    document.getElementById('editEnableCommercials').checked = true;
+                    document.getElementById('editCommercialInterval').value = 'Every15Minutes';
+                    document.getElementById('editMinCommercials').value = 1;
+                    document.getElementById('editMaxCommercials').value = 3;
+                    document.getElementById('editUsePreRolls').checked = true;
+                    document.getElementById('editShuffle').checked = false;
+                    document.getElementById('editRespectEpisodeOrder').checked = true;
+                }
+
+                if (modal.showModal) {
+                    modal.showModal();
+                } else {
+                    modal.style.display = 'block';
+                }
+            },
+
+            saveChannel: function(channelData) {
+                Dashboard.showLoadingMsg();
+
+                var url = channelData.Id ? 
+                    ApiClient.getUrl('VirtualChannels/Channels/' + channelData.Id) :
+                    ApiClient.getUrl('VirtualChannels/Channels');
+
+                var method = channelData.Id ? 'PUT' : 'POST';
+
+                fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Emby-Token': ApiClient.accessToken()
+                    },
+                    body: JSON.stringify(channelData)
+                }).then(function(response) {
+                    if (response.ok) {
+                        Dashboard.hideLoadingMsg();
+                        Dashboard.alert('Channel saved successfully');
+                        VirtualChannelsConfig.loadConfiguration();
+                        document.getElementById('channelEditModal').close();
+                    } else {
+                        Dashboard.hideLoadingMsg();
+                        Dashboard.alert('Error saving channel');
+                    }
+                });
+            },
+
+            deleteChannel: function(channelId) {
+                Dashboard.confirm('Are you sure you want to delete this channel?', 'Confirm Delete', function(result) {
+                    if (result) {
+                        Dashboard.showLoadingMsg();
+
+                        fetch(ApiClient.getUrl('VirtualChannels/Channels/' + channelId), {
+                            method: 'DELETE',
+                            headers: {
+                                'X-Emby-Token': ApiClient.accessToken()
+                            }
+                        }).then(function(response) {
+                            if (response.ok) {
+                                Dashboard.hideLoadingMsg();
+                                Dashboard.alert('Channel deleted successfully');
+                                VirtualChannelsConfig.loadConfiguration();
+                            } else {
+                                Dashboard.hideLoadingMsg();
+                                Dashboard.alert('Error deleting channel');
+                            }
+                        });
+                    }
+                });
+            },
+
+            generateAutoChannels: function() {
+                Dashboard.confirm('This will regenerate all automatic channels. Any existing auto-generated channels will be replaced. Continue?', 
+                    'Generate Auto Channels', function(result) {
+                    if (result) {
+                        Dashboard.showLoadingMsg();
+
+                        fetch(ApiClient.getUrl('VirtualChannels/GenerateAutoChannels'), {
+                            method: 'POST',
+                            headers: {
+                                'X-Emby-Token': ApiClient.accessToken()
+                            }
+                        }).then(function(response) {
+                            if (response.ok) {
+                                return response.json();
+                            } else {
+                                throw new Error('Failed to generate channels');
+                            }
+                        }).then(function(channels) {
+                            Dashboard.hideLoadingMsg();
+                            Dashboard.alert('Generated ' + channels.length + ' automatic channels');
+                            VirtualChannelsConfig.loadConfiguration();
+                        }).catch(function(error) {
+                            Dashboard.hideLoadingMsg();
+                            Dashboard.alert('Error generating channels: ' + error.message);
+                        });
+                    }
+                });
+            }
+        };
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            var page = document.getElementById('VirtualChannelsConfigPage');
+            
+            page.addEventListener('pageshow', function() {
+                VirtualChannelsConfig.loadConfiguration();
+            });
+
+            // Form submission
+            document.getElementById('VirtualChannelsConfigForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                Dashboard.showLoadingMsg();
+
+                var config = {
+                    EnableAutoGeneration: document.getElementById('enableAutoGeneration').checked,
+                    CommercialLibraries: Array.from(document.getElementById('commercialLibraries').selectedOptions)
+                        .map(function(option) { return option.value; }),
+                    PreRollLibraries: Array.from(document.getElementById('preRollLibraries').selectedOptions)
+                        .map(function(option) { return option.value; })
+                };
+
+                ApiClient.getPluginConfiguration(VirtualChannelsConfig.pluginUniqueId).then(function(currentConfig) {
+                    config.Channels = currentConfig.Channels;
+
+                    ApiClient.updatePluginConfiguration(VirtualChannelsConfig.pluginUniqueId, config).then(function() {
+                        Dashboard.hideLoadingMsg();
+                        Dashboard.alert('Settings saved');
+                    });
+                });
+            });
+
+            // Channel edit form submission
+            document.getElementById('channelEditForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+
+                var channelData = {
+                    Id: document.getElementById('editChannelId').value,
+                    Name: document.getElementById('editChannelName').value,
+                    Number: document.getElementById('editChannelNumber').value,
+                    Type: document.getElementById('editChannelType').value,
+                    Enabled: document.getElementById('editChannelEnabled').checked,
+                    CommercialSettings: {
+                        EnableCommercials: document.getElementById('editEnableCommercials').checked,
+                        Interval: document.getElementById('editCommercialInterval').value,
+                        MinCommercials: parseInt(document.getElementById('editMinCommercials').value),
+                        MaxCommercials: parseInt(document.getElementById('editMaxCommercials').value),
+                        UsePreRolls: document.getElementById('editUsePreRolls').checked
+                    },
+                    Schedule: [{
+                        Id: '',
+                        StartTime: '00:00:00',
+                        ContentIds: [],
+                        ContentType: 'Mixed',
+                        Shuffle: document.getElementById('editShuffle').checked,
+                        RespectEpisodeOrder: document.getElementById('editRespectEpisodeOrder').checked,
+                        Mode: document.getElementById('editShuffle').checked ? 'Shuffle' : 'Sequential'
+                    }]
+                };
+
+                VirtualChannelsConfig.saveChannel(channelData);
+            });
+
+            // Add channel button
+            document.getElementById('addChannel').addEventListener('click', function() {
+                VirtualChannelsConfig.editChannel(null);
+            });
+
+            // Generate auto channels button
+            document.getElementById('generateAutoChannels').addEventListener('click', function() {
+                VirtualChannelsConfig.generateAutoChannels();
+            });
+        });
+    </script>
+</body>
+</html>

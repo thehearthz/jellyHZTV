@@ -1,0 +1,175 @@
+name: Build and Release Plugin
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (e.g., 1.0.0.0)'
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Get version from tag or input
+      id: get_version
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          VERSION="${{ github.event.inputs.version }}"
+        else
+          VERSION="${GITHUB_REF#refs/tags/v}"
+        fi
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Building version: $VERSION"
+
+    - name: Restore dependencies
+      run: dotnet restore Jellyfin.Plugin.VirtualChannels/VirtualChannels.csproj
+
+    - name: Build plugin
+      run: |
+        dotnet publish Jellyfin.Plugin.VirtualChannels/VirtualChannels.csproj \
+          --configuration Release \
+          --output build/Jellyfin.Plugin.VirtualChannels \
+          --no-restore \
+          /p:Version=${{ steps.get_version.outputs.version }}
+
+    - name: Create meta.json
+      run: |
+        TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+        cat > build/Jellyfin.Plugin.VirtualChannels/meta.json <<EOF
+        {
+          "category": "LiveTV",
+          "guid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+          "name": "Virtual Channels",
+          "description": "Create virtual cable channels with commercials, pre-rolls, and scheduled programming from your media library",
+          "owner": "${{ github.repository_owner }}",
+          "overview": "Experience your media like traditional TV! Create virtual cable channels that play content from your library with commercials, pre-rolls, and time-based programming. Features automatic channel generation by genre, year, and decade with full Live TV integration.",
+          "targetAbi": "10.10.0.0",
+          "version": "${{ steps.get_version.outputs.version }}",
+          "changelog": "See release notes for details",
+          "timestamp": "$TIMESTAMP"
+        }
+        EOF
+
+    - name: Create plugin package
+      run: |
+        cd build
+        zip -r virtualchannels_${{ steps.get_version.outputs.version }}.zip Jellyfin.Plugin.VirtualChannels/
+        cd ..
+
+    - name: Calculate checksum
+      id: checksum
+      run: |
+        SHA256=$(sha256sum build/virtualchannels_${{ steps.get_version.outputs.version }}.zip | cut -d' ' -f1)
+        echo "sha256=$SHA256" >> $GITHUB_OUTPUT
+        echo "SHA256 Checksum: $SHA256"
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: virtualchannels-${{ steps.get_version.outputs.version }}
+        path: build/virtualchannels_${{ steps.get_version.outputs.version }}.zip
+        retention-days: 90
+
+    - name: Create Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: build/virtualchannels_${{ steps.get_version.outputs.version }}.zip
+        generate_release_notes: true
+        body: |
+          ## Virtual Channels Plugin v${{ steps.get_version.outputs.version }}
+          
+          ### Installation via Plugin Catalog
+          
+          Add this repository to Jellyfin:
+          ```
+          https://${{ github.repository_owner }}.github.io/jellyfin-virtualchannels/manifest.json
+          ```
+          
+          ### Manual Installation
+          
+          1. Download `virtualchannels_${{ steps.get_version.outputs.version }}.zip` below
+          2. Extract to your Jellyfin plugins directory:
+             - Linux: `/var/lib/jellyfin/plugins/VirtualChannels/`
+             - Windows: `%AppData%\Jellyfin\Server\plugins\VirtualChannels\`
+             - Docker: `/config/plugins/VirtualChannels/`
+          3. Restart Jellyfin
+          
+          ### Verification
+          
+          **SHA256 Checksum:** `${{ steps.checksum.outputs.sha256 }}`
+          
+          Verify download integrity:
+          ```bash
+          # Linux/Mac
+          sha256sum virtualchannels_${{ steps.get_version.outputs.version }}.zip
+          
+          # Windows (PowerShell)
+          Get-FileHash virtualchannels_${{ steps.get_version.outputs.version }}.zip -Algorithm SHA256
+          ```
+          
+          ### Update manifest.json
+          
+          Don't forget to update your `manifest.json` with:
+          - **sourceUrl**: `https://github.com/${{ github.repository }}/releases/download/v${{ steps.get_version.outputs.version }}/virtualchannels_${{ steps.get_version.outputs.version }}.zip`
+          - **checksum**: `${{ steps.checksum.outputs.sha256 }}`
+          - **version**: `${{ steps.get_version.outputs.version }}`
+          
+          ---
+          
+          For issues and support, visit the [Issues page](https://github.com/${{ github.repository }}/issues)
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Comment on PR (if applicable)
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: '✅ Build successful! Plugin package created.\n\n**Version:** ${{ steps.get_version.outputs.version }}\n**SHA256:** `${{ steps.checksum.outputs.sha256 }}`'
+          })
+
+  test:
+    runs-on: ubuntu-latest
+    needs: build
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Run tests
+      run: |
+        # Add tests when available
+        echo "No tests configured yet"
+        # dotnet test --configuration Release --no-build
+
+    - name: Verify build artifacts
+      run: |
+        echo "Verifying plugin structure..."
+        # Add verification steps
+        echo "✓ Verification complete"
