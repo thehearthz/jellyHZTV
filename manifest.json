@@ -12,7 +12,7 @@
         "changelog": "Initial release\n- Manual and automatic channel creation\n- Commercial and pre-roll support\n- Time-based programming\n- Live TV integration with EPG\n- Genre, decade, and year-based auto-generation",
         "targetAbi": "10.10.0.0",
         "sourceUrl": "https://github.com/thehearthz/jellyHZTV/archive/refs/tags/v1.0.0.zip",
-        "checksum": "827A4F3500A24933803CBB967B27480E61CCD3DFF727DEE0F38EB56FB1E38359",
+        "checksum": "ff7b4ee1c4595f4041b26152204e55153bed8231",
         "timestamp": "2025-01-15T00:00:00Z"
       }
     ]
